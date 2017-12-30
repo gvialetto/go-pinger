@@ -3,6 +3,7 @@ package pinger
 import (
 	"net"
 	"syscall"
+	"time"
 
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
@@ -44,6 +45,26 @@ func getICMPListener(addr string) (*icmp.PacketConn, string, error) {
 		retErr = err
 	}
 	return nil, "", retErr
+}
+
+func readICMPEchoMessage(
+	conn *icmp.PacketConn,
+	timeout time.Duration,
+	destBuffer []byte,
+) (int, net.Addr, error) {
+	conn.SetReadDeadline(time.Now().Add(timeout))
+	read, addr, err := conn.ReadFrom(destBuffer)
+	if err != nil {
+		if neterr, ok := err.(*net.OpError); ok {
+			// this is caused by our deadline set above, ignore and continue
+			if neterr.Timeout() {
+				return 0, nil, nil
+			}
+		}
+		// TODO: fail here?
+		return -1, nil, err
+	}
+	return read, addr, nil
 }
 
 func sendICMPEchoMessage(

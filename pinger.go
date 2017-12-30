@@ -126,16 +126,8 @@ func (p *Pinger) startICMPListener(ctx context.Context, readTimeout time.Duratio
 		default:
 		}
 		bytes := p.buffers.Get()
-		p.conn.SetReadDeadline(time.Now().Add(readTimeout))
-		_, addr, err := p.conn.ReadFrom(bytes)
-		if err != nil {
-			if neterr, ok := err.(*net.OpError); ok {
-				// this is caused by our deadline set above, ignore and continue
-				if neterr.Timeout() {
-					continue
-				}
-			}
-			// TODO: fail here?
+		read, addr, err := readICMPEchoMessage(p.conn, readTimeout, bytes)
+		if err != nil || read <= 0 {
 			continue
 		}
 		echoMessage := parseICMPMessage(bytes)
